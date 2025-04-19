@@ -14,10 +14,10 @@ MainWindow::MainWindow(QWidget *parent)
     view->setScene(scene);
 
     QFont textFont("Helvetica [Cronyx]", 20);
-    text = scene->addText(defaultTexts[0], textFont);
-    QStringList words = defaultTexts[0].split(" ");
+    text = scene->addText(defaultTexts[8], textFont);
+    QStringList words = defaultTexts[8].split(" ");
     countWords = words.size();
-    countChars = defaultTexts[0].size();
+    countChars = defaultTexts[8].size();
     startCursor();
 
     timer = new QTimer();
@@ -35,8 +35,9 @@ void MainWindow::createStatusBar()
     languages = new QComboBox(this->statusBar());
     restartButton = new QPushButton("Обновить");
     timeLabel = new QLabel("Время: 0");
-    charPerSecond = new QLabel("CPS: " + QString::number(countChars));
-    wordPerSecond = new QLabel("WPS: " + QString::number(countWords));
+    charPerSec = new QLabel("CPS: 0");
+    worldPerSec = new QLabel("WPS: 0");
+    accuracu = new QLabel("Аккуратность: 100%");
     connect(restartButton, &QPushButton::clicked, this, &MainWindow::generateText);
     // connect(timer, &QTimer::timeout, this, &MainWindow::updateTimeLabel);
     languages->addItems({"Английский", "Арабский", "Белорусский", "Испанский", "Итальянский", "Немецкий", "Польский", "Португальский", "Русский", "Французский"});
@@ -45,8 +46,9 @@ void MainWindow::createStatusBar()
     this->statusBar()->addWidget(languages);
     this->statusBar()->addWidget(restartButton);
     this->statusBar()->addWidget(timeLabel);
-    this->statusBar()->addWidget(charPerSecond);
-    this->statusBar()->addWidget(wordPerSecond);
+    this->statusBar()->addWidget(charPerSec);
+    this->statusBar()->addWidget(worldPerSec);
+    this->statusBar()->addWidget(accuracu);
     this->statusBar()->setFocusPolicy(Qt::NoFocus);
     languages->setFocusPolicy(Qt::NoFocus);
     restartButton->setFocusPolicy(Qt::NoFocus);
@@ -54,7 +56,9 @@ void MainWindow::createStatusBar()
 
 void MainWindow::nextLetter(QKeyEvent *key)
 {
-    qInfo() << key->text();
+    if(!timer->isActive())
+        return;
+
     int keyCode = key->nativeScanCode();
     if(keyCode >= 24 && keyCode <= 35)
     {
@@ -72,6 +76,7 @@ void MainWindow::nextLetter(QKeyEvent *key)
     QTextCharFormat format;
     if(key->key() == Qt::Key_Backspace)
     {
+        --totalInputCh;
         format.setUnderlineStyle(QTextCharFormat::NoUnderline);
         cursor->mergeCharFormat(format);
         cursor->movePosition(QTextCursor::PreviousCharacter, QTextCursor::MoveAnchor, 2);
@@ -88,6 +93,7 @@ void MainWindow::nextLetter(QKeyEvent *key)
 
     if(key->text().at(0).isLetter() || key->text().at(0) == " " || key->text().at(0) == "-")
     {
+        ++inputCh;
         if(statedWrite == 0)
         {
             connect(timer, &QTimer::timeout, this, &MainWindow::updateTimeLabel);
@@ -107,11 +113,20 @@ void MainWindow::nextLetter(QKeyEvent *key)
             format.setUnderlineColor(QColor("aqua"));
             format.setForeground(Qt::gray);
             cursor->mergeCharFormat(format);
+
+            ++totalInputCh;
+            ++ch;
+            if (cursor->selectedText() == " ") {
+                ++wr;
+                --ch;
+            }
         }
         else
         {
             if(cursor->selectedText() == " ")
+            {
                 return;
+            }
             format.setUnderlineStyle(QTextCharFormat::NoUnderline);
             format.setForeground(Qt::red);
             cursor->mergeCharFormat(format);
@@ -122,6 +137,7 @@ void MainWindow::nextLetter(QKeyEvent *key)
             format.setUnderlineColor(QColor("aqua"));
             format.setForeground(Qt::gray);
             cursor->mergeCharFormat(format);
+            ++totalInputCh;
         }
     }
 }
@@ -134,8 +150,16 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 void MainWindow::generateText()
 {
     disconnect(timer, &QTimer::timeout, this, &MainWindow::updateTimeLabel);
+
+    ch = 0;
+    wr = 0;
+    inputCh = 0;
+    totalInputCh = 0;
     statedWrite = 0;
-    timeLabel->setText("Время: 0.0");
+    timeLabel->setText("Время: 0");
+    charPerSec->setText("CPS: 0");
+    worldPerSec->setText("WPS: 0");
+    accuracu->setText("Аккуратность: 100%");
 
     if(completeReply == 0)
         return;
@@ -164,6 +188,9 @@ void MainWindow::generateText()
 
     reply = manager.post(request, doc.toJson());
     QObject::connect(reply, &QNetworkReply::finished, this, &MainWindow::updateText);
+
+    timer->start(100);
+    qInfo() << countChars << " | " << countWords;
 }
 
 void MainWindow::updateText()
@@ -205,9 +232,14 @@ void MainWindow::updateText()
 
 void MainWindow::updateTimeLabel()
 {
+    if (totalInputCh == countChars) {
+        timer->stop();
+    }
+
     timeLabel->setText("Время: " + QString::number((double)deltaTime.msecsTo(QTime::currentTime()) / 1000, 'g', 3));
-    charPerSecond->setText("CPS: " + QString::number(countChars / deltaTime.msecsTo(QTime::currentTime())));
-    wordPerSecond->setText("WPS: " );
+    charPerSec->setText("CPS: " + QString::number((double)ch / ((double)deltaTime.msecsTo(QTime::currentTime()) / 1000), 'g', 3));
+    worldPerSec->setText("WPS: " + QString::number( (double)(wr + 1) / ((double)deltaTime.msecsTo(QTime::currentTime()) / 1000), 'g', 3));
+    accuracu->setText("Аккуратность: " + QString::number((ch + wr) * 100 / inputCh) + "%");
 }
 
 void MainWindow::startCursor()

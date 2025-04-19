@@ -66,14 +66,22 @@ private:
     QComboBox *languages;
     QPushButton *restartButton;
     QLabel *timeLabel;
-    QLabel *charPerSecond;
-    QLabel *wordPerSecond;
+    QLabel* charPerSec;
+    QLabel* worldPerSec;
+    QLabel* accuracu;
     int countWords;
     int countChars;
 
     QTimer *timer;
     QTime deltaTime;
     bool statedWrite = 0;
+
+
+    int ch = 0;
+    int wr = 0;
+    int inputCh = 0;
+    int totalInputCh = 0;
+
 
     QTextCursor *cursor;
 
